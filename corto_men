@@ -1,0 +1,58 @@
+#################################################################################
+################################## C O R T O ####################################
+#################################################################################
+
+# corto (Correlation Tool): an R package to generate correlation-based DPI networks.
+
+# doi: https://doi.org/10.1101/2020.02.10.942623
+# https://github.com/federicogiorgi/corto
+
+# Packages ---------------------------------------------------------------------
+
+library(corto)
+
+# Read data --------------------------------------------------------------------
+
+ad_hombre <- readRDS (file = "/datos/home/keilapf/TESIS_CHIDA/PREPRO/ad_onvrez.rds")
+health_hombre <- readRDS(file = "/datos/home/keilapf/TESIS_CHIDA/PREPRO/health_onvrez.rds")
+matriz <- cbind(ad_hombre, health_hombre)
+
+# Regulon  ---------------------------------------------------------------------
+# Lista de factores de transcripción
+athTFs <- read.table(file = "/datos/home/keilapf/TESIS_CHIDA/CORTO/HOMBRES/MRA/keilatfs_gs.txt", stringsAsFactors = FALSE)
+athTFs <- athTFs[[1]]
+centroids <- athTFs[athTFs %in% rownames(matriz)]
+
+regulon <- corto(ad_hombre, 
+                 centroids=centroids, 
+                 nbootstraps=100, 
+                 p=1e-7, 
+                 nthreads=74)
+
+# Master Regulators Analysis ---------------------------------------------------
+
+mrs_h <- mra(ad_hombre, expmat2 = health_hombre, regulon, minsize = 20, nperm = NULL, nthreads = 6, verbose = TRUE, atacseq = NULL)
+
+### Plot
+pdf(file = "cortoMRS.pdf", width = 15, height = 18)
+mraplot(mrs_h, mrs = 10)
+dev.off()
+
+#all para checar ajustada
+alls <- data.frame(TF = names(mrs_h$nes), nes = mrs_h$nes, pvalue = mrs_h$pvalue)
+alls <- alls[order(abs(alls$nes), decreasing = TRUE),]
+
+# ajustar el pvalue
+p.adjust(alls$pvalue, method = "fdr", n = length(alls$pvalue))
+alls$FDR <-  p.adjust(alls$pvalue, method = "fdr", n = length(alls$pvalue))
+
+
+# todos los TMRs con pvalue significativa ordenados de mayor a menos NES
+tops <- data.frame(TF = names(mrs_h$nes[mrs_h$pvalue < 0.05]), nes = mrs_h$nes[mrs_h$pvalue < 0.05], pvalue = mrs_h$pvalue[mrs_h$pvalue < 0.05])
+tops <- tops[order(abs(tops$nes), decreasing = TRUE),]
+
+
+save(centroids, regulon, mrs_h, tops, alls, matriz, file = "corto_hombres.RData")
+
+
+
