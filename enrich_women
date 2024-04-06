@@ -1,0 +1,171 @@
+#### Analisis de enriquecimiento funcional para regulones de mujeres con AD ####
+
+# PACKAGES ---------------------------------------------------------------------
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+#BiocManager::install(version = "3.18")
+#BiocManager::install("clusterProfiler")
+library(clusterProfiler)
+library(tidyverse)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+library(enrichplot)
+
+# READ DATA --------------------------------------------------------------------
+
+load("/datos/home/keilapf/TESIS_CHIDA/CORTO/MUJERES/MRA/corto_mujeres.RData")
+
+
+# ENSEMBL ID -------------------------------------------------------------------
+# Convertir a Ensembl ID
+
+symbol <- data.frame(gsymbol = unique(c(names(regulon$EMX2$tfmode),
+                                        names(regulon$ZNF704$tfmode),
+                                        names(regulon$ASCL1$tfmode),
+                                        names(regulon$ZIC2$tfmode),
+                                        names(regulon$HEY2$tfmode), 
+                                        names(regulon$ZSCAN16$tfmode),
+                                        names(regulon$LHX2$tfmode), 
+                                        names(regulon$KLF15$tfmode), 
+                                        names(regulon$`NKX2-2`$tfmode), 
+                                        names(regulon$NFIB$tfmode))))
+ensembl <- mapIds(org.Hs.eg.db, keys = symbol$gsymbol, 
+                   keytype = "SYMBOL", 
+                   column = "ENSEMBL")
+sym_ens<- cbind(symbol, ensembl)
+
+gsymbols <- mapIds(org.Hs.eg.db, keys = rownames(matriz), 
+                   keytype = "SYMBOL", 
+                   column = "ENSEMBL")
+matriz <-bind_cols(gsymbols, matriz)
+colnames(matriz)[1] <- "ensembl"
+
+# Obtener los regulones en ENSEMBL ID ------------------------------------------
+
+EMX2 <- sym_ens[sym_ens$gsymbol%in%names(regulon$EMX2$tfmode),]
+ZNF704 <- sym_ens[sym_ens$gsymbol%in%names(regulon$ZNF704$tfmode),]
+ASCL1 <-sym_ens[sym_ens$gsymbol%in%names(regulon$ASCL1$tfmode),] 
+ZIC2 <- sym_ens[sym_ens$gsymbol%in%names(regulon$ZIC2$tfmode),]
+HEY2 <- sym_ens[sym_ens$gsymbol%in%names(regulon$HEY2$tfmode),]
+ZSCAN16 <- sym_ens[sym_ens$gsymbol%in%names(regulon$ZSCAN16$tfmode),]
+LHX2 <- sym_ens[sym_ens$gsymbol%in%names(regulon$LHX2$tfmode),]
+KLF15 <-sym_ens[sym_ens$gsymbol%in%names(regulon$KLF15$tfmode),]
+NKX2 <- sym_ens[sym_ens$gsymbol%in%names(regulon$`NKX2-2`$tfmode),]
+NFIB <- sym_ens[sym_ens$gsymbol%in%names(regulon$NFIB$tfmode),]
+
+# ENRICH OVERREPRESENTATION  ---------------------------------------------------
+
+EMX2_enrich <- enrichGO(gene = EMX2$ensembl,
+                      universe = matriz$ensembl,
+                      OrgDb = org.Hs.eg.db, 
+                      keyType = 'ENSEMBL',
+                      readable = TRUE,
+                      ont = "ALL",
+                      pvalueCutoff = 0.05, 
+                      qvalueCutoff = 0.10) #SI
+
+ZNF704_enrich <- enrichGO(gene = ZNF704$ensembl,
+                        universe = matriz$ensembl,
+                        OrgDb = org.Hs.eg.db, 
+                        keyType = 'ENSEMBL',
+                        readable = TRUE,
+                        ont = "ALL",
+                        pvalueCutoff = 0.05, 
+                        qvalueCutoff = 0.10) 
+
+ASCL1_enrich <- enrichGO(gene = ASCL1$ensembl,
+                         universe = matriz$ensembl,
+                         OrgDb = org.Hs.eg.db, 
+                         keyType = 'ENSEMBL',
+                         readable = TRUE,
+                         ont = "ALL",
+                         pvalueCutoff = 0.05, 
+                         qvalueCutoff = 0.10) #SI
+
+ZIC2_enrich <- enrichGO(gene = ZIC2$ensembl,
+                          universe = matriz$ensembl,
+                          OrgDb = org.Hs.eg.db, 
+                          keyType = 'ENSEMBL',
+                          readable = TRUE,
+                          ont = "ALL",
+                          pvalueCutoff = 0.05, 
+                          qvalueCutoff = 0.10)
+
+HEY2_enrich <- enrichGO(gene = HEY2$ensembl,
+                         universe = matriz$ensembl,
+                         OrgDb = org.Hs.eg.db, 
+                         keyType = 'ENSEMBL',
+                         readable = TRUE,
+                         ont = "ALL",
+                         pvalueCutoff = 0.05, 
+                         qvalueCutoff = 0.10) #SI
+
+ZSCAN16_enrich <- enrichGO(gene = ZSCAN16$ensembl,
+                         universe = matriz$ensembl,
+                         OrgDb = org.Hs.eg.db, 
+                         keyType = 'ENSEMBL',
+                         readable = TRUE,
+                         ont = "ALL",
+                         pvalueCutoff = 0.05, 
+                         qvalueCutoff = 0.10)
+                         
+LHX2_enrich <- enrichGO(gene = LHX2$ensembl,
+                        universe = matriz$ensembl,
+                        OrgDb = org.Hs.eg.db,
+                        keyType = 'ENSEMBL',
+                        readable = TRUE,
+                        ont = "ALL",
+                        pvalueCutoff = 0.05,
+                        qvalueCutoff = 0.10)
+
+KLF15_enrich <- enrichGO(gene = KLF15$ensembl,
+                         universe = matriz$ensembl,
+                         OrgDb = org.Hs.eg.db, 
+                         keyType = 'ENSEMBL',
+                         readable = TRUE,
+                         ont = "ALL",
+                         pvalueCutoff = 0.05, 
+                         qvalueCutoff = 0.10) #SI
+
+NKX2_enrich <- enrichGO(gene = NKX2$ensembl,
+                        universe = matriz$ensembl,
+                        OrgDb = org.Hs.eg.db,
+                        keyType = 'ENSEMBL',
+                        readable = TRUE,
+                        ont = "ALL",
+                        pvalueCutoff = 0.05,
+                        qvalueCutoff = 0.10)
+
+
+NFIB_enrich <- enrichGO(gene = NFIB$ensembl,
+                        universe = matriz$ensembl,
+                        OrgDb = org.Hs.eg.db,
+                        keyType = 'ENSEMBL',
+                        readable = TRUE,
+                        ont = "ALL",
+                        pvalueCutoff = 0.05,
+                        qvalueCutoff = 0.10)
+
+regulons_enrich <- enrichGO(gene = sym_ens$ensembl,
+                            universe = matriz$ensembl,
+                            OrgDb = org.Hs.eg.db,
+                            keyType = 'ENSEMBL',
+                            readable = TRUE,
+                            ont = "ALL",
+                            pvalueCutoff = 0.05,
+                            qvalueCutoff = 0.10) #SI
+
+# Plots ------------------------------------------------------------------------
+upsetplot(EMX2_enrich)
+barplot(EMX2_enrich, 
+        drop = TRUE, 
+        showCategory = 10, 
+        title = "GO Biological Pathways",
+        font.size = 8)
+dotplot(EMX2_enrich)
+
+# Save solo los significativos ------------------------------------------------
+
+save(EMX2_enrich, ASCL1_enrich, HEY2_enrich, KLF15_enrich, regulons_enrich, file="TF_GO.RData")
+save(sym_ens, matriz, regulon, EMX2, ZNF704, ASCL1, ZIC2, HEY2, ZSCAN16, LHX2, KLF15, NKX2, NFIB, file = "ensembl.RData")
