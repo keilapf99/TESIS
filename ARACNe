@@ -1,0 +1,17 @@
+# 1. CALCULATE THRESHOLD
+
+java -Xmx5G -jar  /labs/genut/software/ARACNe-AP/dist/aracne.jar -e ad_onvrez.tsv  -o outputFolderh --tfs keilatfs_gs.txt --pvalue 1E-8 --seed 1 \
+--calculateThreshold
+
+# 2. CALCULATE 100 BOOTSTRAPPING
+for i in {1..100}
+do
+java -Xmx5G -jar /labs/genut/software/ARACNe-AP/dist/aracne.jar -e ad_onvrez.tsv  -o outputFolderh --tfs keilatfs_gs.txt --pvalue 1E-8 --seed $i
+done
+
+# 3. CONSOLIDATE NETWORK 
+java -Xmx5G -jar /labs/genut/software/ARACNe-AP/dist/aracne.jar -o outputFolderh --consolidate
+
+
+# Para sacar los 10 regulones de mi red
+grep "^NFIB" outputFolderf/network.txt | cut -f2 > regulon_nfbi.txt
