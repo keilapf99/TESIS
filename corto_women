@@ -1,0 +1,54 @@
+#################################################################################
+################################## C O R T O ####################################
+#################################################################################
+
+# corto (Correlation Tool): an R package to generate correlation-based DPI networks.
+
+# doi: https://doi.org/10.1101/2020.02.10.942623
+# https://github.com/federicogiorgi/corto
+
+# Read data --------------------------------------------------------------------
+
+ad_mujeres <- readRDS (file = "/datos/home/keilapf/TESIS_CHIDA/PREPRO/ad_mujeres.rds")
+health_mujeres <- readRDS(file = "/datos/home/keilapf/TESIS_CHIDA/PREPRO/health_mujeres.rds")
+matriz <- cbind(ad_mujeres, health_mujeres)
+
+# Regulon  ---------------------------------------------------------------------
+# Lista de factores de transcripción
+athTFs <- read.table(file = "/datos/home/keilapf/TESIS_CHIDA/CORTO/HOMBRES/keilatfs_gs.txt", stringsAsFactors = FALSE)
+athTFs <- athTFs[[1]]
+centroids <- athTFs[athTFs %in% rownames(matriz)]
+
+regulon <- corto(ad_mujeres, 
+  centroids=centroids, 
+  nbootstraps=100, 
+  p=1e-7, 
+  nthreads=74)
+
+# Master Regulators Analysis ---------------------------------------------------
+
+mrs_m <- mra(ad_mujeres, expmat2 = health_mujeres, regulon, minsize = 20, nperm = NULL, nthreads = 6, verbose = TRUE, atacseq = NULL)
+
+### Plot
+pdf(file = "cortoMRS.pdf", width = 15, height = 18)
+mraplot(mrs_m, mrs = 10)
+dev.off()
+
+#all para checar ajustada
+alls <- data.frame(TF = names(mrs_m$nes), nes = mrs_m$nes, pvalue = mrs_m$pvalue)
+alls <- alls[order(abs(alls$nes), decreasing = TRUE),]
+
+# ajustar el pvalue
+p.adjust(alls$pvalue, method = "fdr", n = length(alls$pvalue))
+alls$FDR <-  p.adjust(alls$pvalue, method = "fdr", n = length(alls$pvalue))
+
+
+# todos los TMRs con pvalue significativa ordenados de mayor a menos NES
+tops <- data.frame(TF = names(mrs_m$nes[mrs_m$pvalue < 0.05]), nes = mrs_m$nes[mrs_m$pvalue < 0.05], pvalue = mrs_m$pvalue[mrs_m$pvalue < 0.05])
+tops <- tops[order(abs(tops$nes), decreasing = TRUE),]
+write.table(tops, file = "topTMRs_m.txt", quote = FALSE, sep = "\t", row.names = FALSE, )
+
+
+save(centroids, regulon, mrs_m, tops, alls, matriz, file = "corto_mujeres.RData")
+
+
