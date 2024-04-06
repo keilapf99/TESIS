@@ -1,0 +1,159 @@
+## PREPROCESAMIENTO PARA OBTENER MATRICES DE EXPRESION PARA MUJER AD Y CONTROL
+
+
+#PACKAGE -----------------------------------------------------------------------
+pacman::p_load("dplyr", 
+               'vroom', 
+               'stringr')
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+
+#READ DATA ---------------------------------------------------------------------
+
+tpm<- readRDS(file= "/datos/home/keilapf/TESIS_CHIDA/METADATA/TPM_matrix.rds")
+cli_bio_metadata <- vroom(file="/datos/home/keilapf/TESIS_CHIDA/METADATA/cli_bio_metadata.csv")
+
+#Crear data frame de metadata con los datos de interes
+cli_bio_metadata <- cli_bio_metadata[,c(3,4,5,6,9,10,14,15,18,19,21,22,34)]
+
+#Filtrar por assay
+cli_bio_metadata <- cli_bio_metadata %>% 
+  filter(assay == 'rnaSeq', 
+         organ == 'brain',
+         msex == "0")   #metadata con datos RNAseq en cerebro de hombres
+
+#MATCH CON TPM -----------------------------------------------------------------
+
+colnames(tpm) <- substr(colnames(tpm),1, nchar(colnames(tpm))-2)
+rownames(tpm) <- substr(rownames(tpm), 1, 15)
+rownames(cli_bio_metadata) <- cli_bio_metadata$specimenID
+tpm <- tpm[, colnames(tpm)%in%cli_bio_metadata$specimenID]
+
+# se pierden "tracking_id" "764_130520"  "800_130701" 
+cli_bio_metadata <- cli_bio_metadata[rownames(cli_bio_metadata)%in%colnames(tpm),]
+
+#Hacer subsets de la metadata segun el diagnostisco NIA-reagan
+
+# N 
+
+n_ad <- cli_bio_metadata %>% 
+  filter(ceradsc == '1' | ceradsc == '2',
+         braaksc == '6'| braaksc == '5' | braaksc == '4'| braaksc == '3')
+
+n_health <- cli_bio_metadata %>% 
+  filter(ceradsc == '4' | ceradsc == '3', braaksc == '2'| braaksc == '1' | braaksc == '0')
+
+n_total <- rbind(n_health, n_ad)
+
+
+# METRICAS DE LA POBLACIÓN ------------------------------------------------------
+
+
+# EDAD
+
+edades <- as.numeric(n_total$age_death)
+edades[is.na(edades)] <- 90
+mean(edades)
+#87.60562
+
+# AÑOS DE ESTUDIO
+
+estudio <- as.numeric(n_total$educ)
+mean(estudio)
+# 16.04096
+
+# RAZA 
+
+#Blancos
+
+blancos <-  n_total %>% 
+  filter(race == '1')
+porcentaje_blancos <- (290/293)*100
+porcentaje_blancos
+# 98.97611
+
+#No blancos
+
+no_blancos <-  n_total %>% 
+  filter(!race == '1')
+# 2Black or African American
+p_afroamericano <- (3/293)*100
+p_afroamericano
+# 1.023891
+
+
+# MATCH TPM SEGUN CONDICIÓN ----------------------------------------------------
+
+tpm_total <- tpm[, n_total$specimenID] 
+tpm_ad <- tpm[,n_ad$specimenID]
+tpm_health <- tpm[,n_health$specimenID]
+
+
+# PREPROCESAMIENTO -------------------------------------------------------------
+
+df_tpm <- as.data.frame(tpm_total)
+df_tpm <- cbind(row.names(df_tpm), df_tpm)
+ad_names <- colnames(tpm_ad)
+h_names <- colnames(tpm_health)
+
+# Cambiar ensembl por gene symbol ----------------------------------------------
+
+# Convertimos de Ensemble ID a Gene Symbol
+gsymbols <- mapIds(org.Hs.eg.db, keys = rownames(df_tpm), 
+                   keytype = "ENSEMBL", 
+                   column = "SYMBOL")
+df_tpm <-bind_cols(gsymbols, df_tpm)
+dim(df_tpm)
+# 55889   295
+df_tpm <- df_tpm[!is.na(df_tpm$...1),]
+dim(df_tpm)
+#33185   295
+
+# Hacer una pequeño filtrado a mis datos ----------------------------------
+# Se filtran los genes que tengan una expr menor a 0 para mas de 80% muestras
+df_tpm <- df_tpm[rowSums(df_tpm[,-c(1:2)] > 0) >= 234,]
+dim(df_tpm)
+#17373   295
+df_tpm<- df_tpm[,-2]
+colnames(df_tpm)[1] <- "symbol"
+
+# Funcion para obtener la moda
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Se define la funcion para sacar moda por columna:
+colMode=function(v){
+  return(apply(v, 2, getmode))
+}
+
+# Sacamos la media para cada gen repetido ("chunk") y luego unimos la nueva matriz
+tpm_matrix <- do.call(rbind, lapply(split(df_tpm, df_tpm[,1]), 
+                                    function(chunk){colMode(chunk[,-1])}))
+dim(tpm_matrix)
+#   17362   293
+
+#Crear las matrices segun el diagnostico ---------------------------------------
+
+ad_tpm <- tpm_matrix[,ad_names]
+h_tpm <- tpm_matrix[,h_names]
+dim(ad_tpm)
+#17362   253
+dim(h_tpm)
+#17362    40
+
+# Guardar matrices en formato RDS (R) y TSV (ARACNE)----------------------------
+saveRDS(ad_tpm, file = "ad_mujeres.rds")
+saveRDS(h_tpm, file = "health_mujeres.rds")
+
+write.table(ad_tpm, 
+            file = "ad_mujeres.tsv", 
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE, 
+            quote = FALSE)
+
+
+
+#### FIN ########
